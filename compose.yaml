@@ -1,0 +1,65 @@
+services:
+ postgres:
+  image: postgres:16-alpine
+  container_name: my_postgres
+  environment:
+    POSTGRES_USER: ${POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    POSTGRES_DB: ${POSTGRES_DB}
+  ports:
+    - "${POSTGRES_PORT}:5432"
+  volumes:
+    - pg_data:/var/lib/postgresql/data
+
+ go_backend:
+    image: url-shortener:multistage
+    ports: 
+     - "${GO_SERVER_PORT}:8080"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_NAME=${POSTGRES_DB}
+      - DB_PORT=${DB_PORT}
+      - KAFKA_URL=${KAFKA_URL}
+      - FIREBASE_CREDENTIALS=${FIREBASE_CREDENTIALS}
+    depends_on:
+       - postgres
+       - broker
+
+ spring_boot_service:
+  image: analytics-service:latest
+  ports:
+    - "${SPRING_SERVER_PORT}:8081"
+  environment:
+    - DB_USERNAME=${POSTGRES_USER}
+    - DB_PASSWORD=${POSTGRES_PASSWORD}
+    - DATABASE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${POSTGRES_DB}
+    - KAFKA_HOST=broker
+  depends_on:
+   - postgres
+   - broker
+
+ broker:
+  image: apache/kafka:latest
+  ports:
+    - "${KAFKA_PORT}:9092"
+    - "${KAFKA_CONTROLLER_PORT}:9093"
+  environment:
+      KAFKA_NODE_ID: ${KAFKA_NODE_ID}
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: ${KAFKA_NODE_ID}@broker:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR}
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: ${KAFKA_REPLICATION_FACTOR}
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: ${KAFKA_REPLICATION_FACTOR}
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+
+volumes:
+ pg_data:
+
+
