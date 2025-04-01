@@ -10,6 +10,12 @@ services:
     - "${POSTGRES_PORT}:5432"
   volumes:
     - pg_data:/var/lib/postgresql/data
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+    interval: 5s
+    timeout: 5s
+    retries: 5
+    start_period: 10s
 
  go_backend:
     image: url-shortener:multistage
@@ -24,8 +30,10 @@ services:
       - KAFKA_URL=${KAFKA_URL}
       - FIREBASE_CREDENTIALS=${FIREBASE_CREDENTIALS}
     depends_on:
-       - postgres
-       - broker
+      postgres:
+        condition: service_healthy
+      broker: 
+        condition: service_started
 
  spring_boot_service:
   image: analytics-service:latest
@@ -37,8 +45,11 @@ services:
     - DATABASE_URL=jdbc:postgresql://${DB_HOST}:${DB_PORT}/${POSTGRES_DB}
     - KAFKA_HOST=broker
   depends_on:
-   - postgres
-   - broker
+   postgres:
+      condition: service_healthy
+   broker:
+      condition: service_started
+
 
  broker:
   image: apache/kafka:latest
