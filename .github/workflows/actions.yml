@@ -1,0 +1,44 @@
+name: Deploy Docker Compose
+on:
+    push:
+        branches: [main]
+
+jobs:
+    docker-compose:
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout code
+              uses: actions/checkout@v4
+
+            - name: ssh into my vm
+              uses: appleboy/ssh-action@v1.2.2
+              with: 
+                host: ${{ secrets.AZURE_VM_HOST }}
+                username: ${{ secrets.AZURE_VM_USERNAME }}
+                key: ${{ secrets.AZURE_VM_SSH_KEY }}
+                port: 22
+                script: |
+                    set -e
+                    cd ~/url-shortener-compose
+                    cat <<EOF > .env
+                    POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+                    POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+                    POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+                    POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
+                    DB_HOST=${{ secrets.DB_HOST }}
+                    DB_PORT=${{ secrets.DB_PORT }}
+                    GO_SERVER_PORT=${{ secrets.GO_SERVER_PORT }}
+                    KAFKA_URL=${{ secrets.KAFKA_URL }}
+                    FIREBASE_CREDENTIALS=${{ secrets.FIREBASE_CREDENTIALS }}
+                    SPRING_SERVER_PORT=${{ secrets.SPRING_SERVER_PORT }}
+                    KAFKA_PORT=${{ secrets.KAFKA_PORT }}
+                    KAFKA_CONTROLLER_PORT=${{ secrets.KAFKA_CONTROLLER_PORT }}
+                    KAFKA_NODE_ID=${{ secrets.KAFKA_NODE_ID }}
+                    KAFKA_REPLICATION_FACTOR=${{ secrets.KAFKA_REPLICATION_FACTOR }}
+                    EOF
+                    git fetch -all
+                    git checkout main
+                    git reset --hard origin/main
+                    echo "${{secrets.DOCKER_CI_TOKEN}}" | docker login -u drako02 --password-stdin
+                    docker compose pull
+                    docker compose up -d --remove-orphans             
