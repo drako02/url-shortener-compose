@@ -36,7 +36,7 @@ jobs:
                     KAFKA_NODE_ID=${{ secrets.KAFKA_NODE_ID }}
                     KAFKA_REPLICATION_FACTOR=${{ secrets.KAFKA_REPLICATION_FACTOR }}
                     EOF
-                    git fetch -all
+                    git fetch --all
                     git checkout main
                     git reset --hard origin/main
                     echo "${{secrets.DOCKER_CI_TOKEN}}" | docker login -u drako02 --password-stdin
